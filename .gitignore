@@ -6,4 +6,3 @@ build-*/
 *.autosave
 ~*
 *.exe
-!/bin/*.exe
