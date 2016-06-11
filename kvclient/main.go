@@ -159,14 +159,46 @@ func PingStreamCS(kvclient BfKvServiceClient) {
 
 // detect state by unary rpc with timeout :-(
 // https://github.com/grpc/grpc-go/pull/690
+
+func DetectServer(kvclient BfKvServiceClient) bool {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancel()
+	resp, err := kvclient.Ping(ctx, &BfPingData{Message: message})
+	if err != nil {
+		log.Printf("could not Ping: %v", err)
+		return false
+	}
+	log.Printf("recv,%s", resp.Message)
+	return true
+}
+
+func WaitForServerReady(kvclient BfKvServiceClient) {
+	log.Printf("WaitForClientReady......")
+	for {
+		if DetectServer(kvclient) {
+			break
+		} else {
+			time.Sleep(time.Duration(10 * time.Second))
+		}
+	}
+}
+
 func main() {
 	log.Printf("connect kvserver")
+	//
+	// deadline:
+	//   http://stackoverflow.com/questions/37414825/specify-a-deadline-with-go-grpc-for-peer-to-peer-connections
+	//
+	//deadline := 5
+	//conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(time.Duration(deadline)*time.Second))
+	//
 	conn, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
 	kvclient := NewBfKvServiceClient(conn)
+	WaitForServerReady(kvclient)
 
 	log.Printf("===Ping===")
 	Ping(kvclient)
