@@ -173,7 +173,7 @@ func DetectServer(kvclient BfKvServiceClient) bool {
 }
 
 func WaitForServerReady(kvclient BfKvServiceClient) {
-	log.Printf("WaitForClientReady......")
+	log.Printf("WaitForServerReady......")
 	for {
 		if DetectServer(kvclient) {
 			break
