@@ -157,6 +157,8 @@ func PingStreamCS(kvclient BfKvServiceClient) {
 	<-waitc
 }
 
+// detect state by unary rpc with timeout :-(
+// https://github.com/grpc/grpc-go/pull/690
 func main() {
 	log.Printf("connect kvserver")
 	conn, err := grpc.Dial(address, grpc.WithInsecure())
