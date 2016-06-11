@@ -22,7 +22,7 @@ func Ping(kvclient BfKvServiceClient) {
 	if err != nil {
 		log.Fatalf("could not Ping: %v", err)
 	}
-	log.Printf("kvserver Pong: %s", resp.Message)
+	log.Printf("recv,%s", resp.Message)
 }
 
 func PingStreamC(kvclient BfKvServiceClient) {
@@ -32,46 +32,46 @@ func PingStreamC(kvclient BfKvServiceClient) {
 	}
 
 	rd := rand.New(rand.NewSource(time.Now().UnixNano()))
-	pingData := &BfPingData{Message: message}
-	anyData, err := ptypes.MarshalAny(pingData)
+	pingReq := &BfPingData{Message: message}
+	anyReq, err := ptypes.MarshalAny(pingReq)
 	if err != nil {
 		log.Fatalf("MarshalAny fail,%v", err)
 	}
 	for i := 0; i < 10; i++ {
-		if err := stream.Send(anyData); err != nil {
+		if err := stream.Send(anyReq); err != nil {
 			log.Fatalf("Send fail,%v", err)
 		}
-		log.Printf("send pingdata:%s", pingData.Message)
+		log.Printf("send,%s", pingReq.Message)
 		s := 500 + rd.Int31n(500) - 1
 		time.Sleep(time.Duration(s) * time.Millisecond)
 	}
 
-	reply, err := stream.CloseAndRecv()
+	anyResp, err := stream.CloseAndRecv()
 	if err != nil {
 		log.Fatalf("CloseAndRecv fail,%v", err)
 	}
 
-	if ptypes.Is(reply, pingData) {
-		pongData := &BfPingData{}
-		ptypes.UnmarshalAny(reply, pongData)
-		log.Printf("kvserver pong: %s", pongData.Message)
+	pingResp := &BfPingData{}
+	if ptypes.Is(anyResp, pingResp) {
+		ptypes.UnmarshalAny(anyResp, pingResp)
+		log.Printf("recv,%s", pingResp.Message)
 	} else {
-		log.Fatalf("pingstreamc pong : %v", reply)
+		log.Fatalf("pingstreamc pong : %v", anyResp)
 	}
 }
 
 func PingStreamS(kvclient BfKvServiceClient) {
-	pingData := &BfPingData{Message: message}
-	anyData, err := ptypes.MarshalAny(pingData)
+	pingReq := &BfPingData{Message: message}
+	anyReq, err := ptypes.MarshalAny(pingReq)
 	if err != nil {
 		log.Fatalf("MarshalAny fail,%v", err)
 	}
-	stream, err := kvclient.PingStreamS(context.Background(), anyData)
+	stream, err := kvclient.PingStreamS(context.Background(), anyReq)
 	if err != nil {
 		log.Fatalf("%v.PingStreamS fail, %v", err)
 	}
 	for {
-		anyData, err := stream.Recv()
+		anyResp, err := stream.Recv()
 		if err == io.EOF {
 			break
 		}
@@ -79,19 +79,19 @@ func PingStreamS(kvclient BfKvServiceClient) {
 			log.Fatalf("PingStreamS fail, %v", err)
 		}
 
-		if ptypes.Is(anyData, pingData) {
-			pongData := &BfPingData{}
-			ptypes.UnmarshalAny(anyData, pongData)
-			log.Printf("kvserver pong: %s", pongData.Message)
+		pingResp := &BfPingData{}
+		if ptypes.Is(anyResp, pingResp) {
+			ptypes.UnmarshalAny(anyResp, pingResp)
+			log.Printf("recv,%s", pingResp.Message)
 		} else {
-			log.Fatalf("PingStreamS pong : %v", anyData)
+			log.Fatalf("PingStreamS pong : %v", anyResp)
 		}
 	}
 }
 
 func PingStreamCS(kvclient BfKvServiceClient) {
-	pingData := &BfPingData{Message: message}
-	anyData, err := ptypes.MarshalAny(pingData)
+	pingReq := &BfPingData{Message: message}
+	anyReq, err := ptypes.MarshalAny(pingReq)
 	if err != nil {
 		log.Fatalf("MarshalAny fail,%v", err)
 	}
@@ -103,7 +103,7 @@ func PingStreamCS(kvclient BfKvServiceClient) {
 	waitc := make(chan struct{})
 	go func() {
 		for {
-			anyData, err := stream.Recv()
+			anyResp, err := stream.Recv()
 			if err == io.EOF {
 				// read done.
 				close(waitc)
@@ -113,12 +113,12 @@ func PingStreamCS(kvclient BfKvServiceClient) {
 				log.Fatalf("Failed to receive a pong : %v", err)
 			}
 
-			if ptypes.Is(anyData, pingData) {
-				pongData := &BfPingData{}
-				ptypes.UnmarshalAny(anyData, pongData)
-				log.Printf("kvserver pong: %s", pongData.Message)
+			pingResp := &BfPingData{}
+			if ptypes.Is(anyResp, pingResp) {
+				ptypes.UnmarshalAny(anyResp, pingResp)
+				log.Printf("recv,%s", pingResp.Message)
 			} else {
-				log.Fatalf("PingStreamCS pong : %v", anyData)
+				log.Fatalf("PingStreamCS pong : %v", anyResp)
 			}
 		}
 	}()
@@ -128,10 +128,10 @@ func PingStreamCS(kvclient BfKvServiceClient) {
 		log.Fatalf("MarshalAny fail,%v", err)
 	}
 	for i := 0; i < 10; i++ {
-		if err := stream.Send(anyData); err != nil {
+		if err := stream.Send(anyReq); err != nil {
 			log.Fatalf("Send fail,%v", err)
 		}
-		log.Printf("send pingdata:%s", pingData.Message)
+		log.Printf("send,%s", pingReq.Message)
 		s := 500 + rd.Int31n(500) - 1
 		time.Sleep(time.Duration(s) * time.Millisecond)
 	}
