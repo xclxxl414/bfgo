@@ -11,14 +11,23 @@ import . "github.com/sunwangme/bfgo/api/bfkv"
 import . "github.com/sunwangme/bfgo/api/bfgateway"
 
 import "github.com/golang/protobuf/ptypes"
+import "google.golang.org/grpc/metadata"
 
 const (
 	address = "localhost:50059"
 	message = "ping"
 )
 
+//
+// metadata & any:
+//   http://www.hward.com/golang-grpc-context-client-server/
+//   https://1024coder.com/topic/30
+//   google.golang.org\grpc\test\end2end_test.go
 func Ping(kvclient BfKvServiceClient) {
-	resp, err := kvclient.Ping(context.Background(), &BfPingData{Message: message})
+	ctx := context.Background()
+	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", "kvclient"))
+
+	resp, err := kvclient.Ping(ctx, &BfPingData{Message: message})
 	if err != nil {
 		log.Fatalf("could not Ping: %v", err)
 	}
@@ -26,7 +35,10 @@ func Ping(kvclient BfKvServiceClient) {
 }
 
 func PingStreamC(kvclient BfKvServiceClient) {
-	stream, err := kvclient.PingStreamC(context.Background())
+	ctx := context.Background()
+	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", "kvclient"))
+
+	stream, err := kvclient.PingStreamC(ctx)
 	if err != nil {
 		log.Fatalf("%v.PingStreamC(_) = _, %v", kvclient, err)
 	}
@@ -61,12 +73,15 @@ func PingStreamC(kvclient BfKvServiceClient) {
 }
 
 func PingStreamS(kvclient BfKvServiceClient) {
+	ctx := context.Background()
+	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", "kvclient"))
+
 	pingReq := &BfPingData{Message: message}
 	anyReq, err := ptypes.MarshalAny(pingReq)
 	if err != nil {
 		log.Fatalf("MarshalAny fail,%v", err)
 	}
-	stream, err := kvclient.PingStreamS(context.Background(), anyReq)
+	stream, err := kvclient.PingStreamS(ctx, anyReq)
 	if err != nil {
 		log.Fatalf("%v.PingStreamS fail, %v", err)
 	}
@@ -90,13 +105,15 @@ func PingStreamS(kvclient BfKvServiceClient) {
 }
 
 func PingStreamCS(kvclient BfKvServiceClient) {
+	ctx := context.Background()
+	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", "kvclient"))
+
 	pingReq := &BfPingData{Message: message}
 	anyReq, err := ptypes.MarshalAny(pingReq)
 	if err != nil {
 		log.Fatalf("MarshalAny fail,%v", err)
 	}
-
-	stream, err := kvclient.PingStreamCS(context.Background())
+	stream, err := kvclient.PingStreamCS(ctx)
 	if err != nil {
 		log.Fatalf("PingStreamCS fail, %v", err)
 	}

@@ -15,6 +15,8 @@ import . "github.com/sunwangme/bfgo/api/bfgateway"
 import "github.com/golang/protobuf/ptypes"
 import . "github.com/golang/protobuf/ptypes/any"
 
+import "google.golang.org/grpc/metadata"
+
 const (
 	address = "localhost:50059"
 	message = "pong"
@@ -26,13 +28,13 @@ type KvServer struct {
 
 //======
 func (kvserver *KvServer) Ping(ctx context.Context, req *BfPingData) (*BfPingData, error) {
-	log.Printf("===Ping===")
+	log.Printf("===Ping===,clientid=(%s)", getClientId(ctx))
 	log.Printf("recv,%s", req.Message)
 	return &BfPingData{Message: message}, nil
 }
 
 func (kvserver *KvServer) PingStreamC(stream BfKvService_PingStreamCServer) error {
-	log.Printf("===PingStreamC===")
+	log.Printf("===PingStreamC===,clientid=(%s)", getClientId(stream.Context()))
 	pingResp := &BfPingData{Message: message}
 	anyResp, err := ptypes.MarshalAny(pingResp)
 	if err != nil {
@@ -61,7 +63,7 @@ func (kvserver *KvServer) PingStreamC(stream BfKvService_PingStreamCServer) erro
 	}
 }
 func (kvserver *KvServer) PingStreamS(anyReq *Any, stream BfKvService_PingStreamSServer) error {
-	log.Printf("===PingStreamS===")
+	log.Printf("===PingStreamS===,clientid=(%s)", getClientId(stream.Context()))
 
 	pingReq := &BfPingData{}
 	if ptypes.Is(anyReq, pingReq) {
@@ -92,7 +94,7 @@ func (kvserver *KvServer) PingStreamS(anyReq *Any, stream BfKvService_PingStream
 }
 
 func (kvserver *KvServer) PingStreamCS(stream BfKvService_PingStreamCSServer) error {
-	log.Printf("===PingStreamCS===")
+	log.Printf("===PingStreamCS===,clientid=(%s)", getClientId(stream.Context()))
 	pingResp := &BfPingData{Message: message}
 	anyResp, err := ptypes.MarshalAny(pingResp)
 	if err != nil {
@@ -134,6 +136,21 @@ func (kvserver *KvServer) GetKv(context.Context, *BfKvData) (*BfKvData, error) {
 }
 
 //======
+
+func getClientId(ctx context.Context) (clientId string) {
+	clientId = ""
+	if md, ok := metadata.FromContext(ctx); ok {
+		if _, ok := md["clientid"]; !ok {
+			return
+		}
+		for _, entry := range md["clientid"] {
+			clientId = entry
+			return
+		}
+	}
+	return
+}
+
 func newKvServer() *KvServer {
 	s := new(KvServer)
 	return s
