@@ -91,7 +91,7 @@ func main() {
 	BfRun(client,
 		client.clientId,
 		client.tickHandler,
-		client.tickHandler,
+		client.tradeHandler,
 		client.logHandler,
 		client.symbol,
 		client.exchange)
