@@ -25,7 +25,7 @@ QQ交流群340195342，点击加入：http://jq.qq.com/?_wv=1027&k=2ADNTk3
 网友策略列表
 ======
 datarecorder/：tick收集器，演示BfTraderClient+BfRun的用法
-kvclient/ & kvserver/：grpc例子
+sunwangme/：grpc例子
 oneywang/: 1分钟方向策略
 
 （完）
