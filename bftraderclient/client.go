@@ -38,6 +38,9 @@ type BfTrderClient_ITF interface {
 	DfGetContract(req *BfGetContractReq) (resps []*BfContractData, err error)
 	GetTick(req *BfGetTickReq) (resps []*BfTickData, err error)
 	GetBar(req *BfGetBarReq) (resps []*BfBarData, err error)
+	DeleteContract(req *BfDeleteContractReq)
+	DeleteTick(req *BfDeleteTickReq)
+	DeleteBar(req *BfDeleteBarReq)
 	DfPing(req *BfPingData) (resp *BfPingData, err error)
 
 	//

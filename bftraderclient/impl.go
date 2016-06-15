@@ -138,7 +138,6 @@ func (client *BfTrderClient) GwGetContract(req *BfGetContractReq) (resps []*BfCo
 
 	return resps, nil
 }
-
 func (client *BfTrderClient) GwPing(req *BfPingData) (resp *BfPingData, err error) {
 	ctx := context.Background()
 	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", clientId_))
@@ -239,6 +238,31 @@ func (client *BfTrderClient) GetBar(req *BfGetBarReq) (resps []*BfBarData, err e
 	}
 
 	return resps, nil
+}
+func (client *BfTrderClient) DeleteContract(req *BfDeleteContractReq) {
+	ctx := context.Background()
+	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", clientId_))
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(deadline*time.Second))
+	defer cancel()
+
+	client.Datafeed.DeleteContract(ctx, req)
+}
+func (client *BfTrderClient) DeleteTick(req *BfDeleteTickReq) {
+	ctx := context.Background()
+	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", clientId_))
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(deadline*time.Second))
+	defer cancel()
+
+	client.Datafeed.DeleteTick(ctx, req)
+}
+func (client *BfTrderClient) DeleteBar(req *BfDeleteBarReq) {
+	ctx := context.Background()
+	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", clientId_))
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(deadline*time.Second))
+	defer cancel()
+
+	client.Datafeed.DeleteBar(ctx, req)
+
 }
 func (client *BfTrderClient) DfPing(req *BfPingData) (resp *BfPingData, err error) {
 	ctx := context.Background()
