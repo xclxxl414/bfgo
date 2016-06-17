@@ -9,8 +9,7 @@ type BfTrderClient_ITF interface {
 	// callback, override!!!
 	//
 	OnStart()
-	OnTradeWillBegin(resp *BfNotificationData)
-	OnGotContracts(resp *BfNotificationData)
+	OnNotification(resp *BfNotificationData)
 	OnPing(resp *BfPingData)
 	OnTick(resp *BfTickData)
 	OnError(resp *BfErrorData)
@@ -26,6 +25,7 @@ type BfTrderClient_ITF interface {
 	CancleOrder(req *BfCancelOrderReq)
 	QueryAccount()
 	QueryPosition()
+	QueryOrders()
 	GwGetContract(req *BfGetContractReq) (resps []*BfContractData, err error)
 	GwPing(req *BfPingData) (resp *BfPingData, err error)
 

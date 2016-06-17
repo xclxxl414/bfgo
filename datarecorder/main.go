@@ -19,22 +19,31 @@ type DataRecorder struct {
 func (client *DataRecorder) OnStart() {
 	log.Printf("OnStart")
 }
-func (client *DataRecorder) OnTradeWillBegin(resp *BfNotificationData) {
-	log.Printf("OnTradeWillBegin")
-	log.Printf("%v", resp)
-}
-func (client *DataRecorder) OnGotContracts(resp *BfNotificationData) {
-	log.Printf("OnGotContracts")
+func (client *DataRecorder) OnNotification(resp *BfNotificationData) {
+	log.Printf("OnNotification")
 	log.Printf("%v", resp)
 
-	//
-	// save contracts
-	//
-	resps, _ := client.GwGetContract(&BfGetContractReq{Symbol: "*", Exchange: "*"})
-	for _, resp := range resps {
-		client.InsertContract(resp)
+	nType := resp.Type
+	if nType == BfNotificationType_NOTIFICATION_TRADEWILLBEGIN {
+		log.Printf("OnTradeWillBegin")
+	} else if nType == BfNotificationType_NOTIFICATION_GOTCONTRACTS {
+		log.Printf("OnGotContracts")
+		//
+		// save contracts
+		//
+		resps, _ := client.GwGetContract(&BfGetContractReq{Symbol: "*", Exchange: "*"})
+		for _, resp := range resps {
+			client.InsertContract(resp)
+		}
+	} else if nType == BfNotificationType_NOTIFICATION_BEGINQUERYORDERS {
+	} else if nType == BfNotificationType_NOTIFICATION_BEGINQUERYPOSITION {
+	} else if nType == BfNotificationType_NOTIFICATION_ENDQUERYORDERS {
+	} else if nType == BfNotificationType_NOTIFICATION_ENDQUERYPOSITION {
+	} else {
+		log.Printf("invalid notification type")
 	}
 }
+
 func (client *DataRecorder) OnPing(resp *BfPingData) {
 	log.Printf("OnPing")
 	log.Printf("%v", resp)

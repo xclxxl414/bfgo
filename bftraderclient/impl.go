@@ -68,18 +68,17 @@ func NewBfTraderClient() *BfTrderClient {
 }
 
 //===callback===
-func (client *BfTrderClient) OnStart()                                  {}
-func (client *BfTrderClient) OnTradeWillBegin(resp *BfNotificationData) {}
-func (client *BfTrderClient) OnGotContracts(resp *BfNotificationData)   {}
-func (client *BfTrderClient) OnPing(resp *BfPingData)                   {}
-func (client *BfTrderClient) OnTick(resp *BfTickData)                   {}
-func (client *BfTrderClient) OnError(resp *BfErrorData)                 {}
-func (client *BfTrderClient) OnLog(resp *BfLogData)                     {}
-func (client *BfTrderClient) OnTrade(resp *BfTradeData)                 {}
-func (client *BfTrderClient) OnOrder(resp *BfOrderData)                 {}
-func (client *BfTrderClient) OnPosition(resp *BfPositionData)           {}
-func (client *BfTrderClient) OnAccount(resp *BfAccountData)             {}
-func (client *BfTrderClient) OnStop()                                   {}
+func (client *BfTrderClient) OnStart()                                {}
+func (client *BfTrderClient) OnNotification(resp *BfNotificationData) {}
+func (client *BfTrderClient) OnPing(resp *BfPingData)                 {}
+func (client *BfTrderClient) OnTick(resp *BfTickData)                 {}
+func (client *BfTrderClient) OnError(resp *BfErrorData)               {}
+func (client *BfTrderClient) OnLog(resp *BfLogData)                   {}
+func (client *BfTrderClient) OnTrade(resp *BfTradeData)               {}
+func (client *BfTrderClient) OnOrder(resp *BfOrderData)               {}
+func (client *BfTrderClient) OnPosition(resp *BfPositionData)         {}
+func (client *BfTrderClient) OnAccount(resp *BfAccountData)           {}
+func (client *BfTrderClient) OnStop()                                 {}
 
 //===gateway api===
 func (client *BfTrderClient) SendOrder(req *BfSendOrderReq) (resp *BfSendOrderResp, err error) {
@@ -115,7 +114,14 @@ func (client *BfTrderClient) QueryPosition() {
 
 	client.Gateway.QueryPosition(ctx, &BfVoid{})
 }
+func (client *BfTrderClient) QueryOrders() {
+	ctx := context.Background()
+	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", clientId_))
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(deadline*time.Second))
+	defer cancel()
 
+	client.Gateway.QueryOrders(ctx, &BfVoid{})
+}
 func (client *BfTrderClient) GwGetContract(req *BfGetContractReq) (resps []*BfContractData, err error) {
 	ctx := context.Background()
 	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", clientId_))
@@ -311,13 +317,7 @@ func (client *BfTrderClient) DispatchPush(anyResp *Any) {
 	} else if ptypes.Is(anyResp, notificationType_) {
 		notificationResp := &BfNotificationData{}
 		ptypes.UnmarshalAny(anyResp, notificationResp)
-		if notificationResp.Type == BfNoticationType_NOTIFICATION_TRADEWILLBEGIN {
-			spi_.OnTradeWillBegin(notificationResp)
-		} else if notificationResp.Type == BfNoticationType_NOTIFICATION_GOTCONTRACTS {
-			spi_.OnGotContracts(notificationResp)
-		} else {
-			log.Printf("invalid notification type,%v", notificationResp)
-		}
+		spi_.OnNotification(notificationResp)
 	} else {
 		log.Printf("invalid type message,%v", anyResp)
 	}
