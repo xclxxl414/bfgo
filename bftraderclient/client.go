@@ -25,9 +25,9 @@ type BfTrderClient_ITF interface {
 	CancleOrder(req *BfCancelOrderReq)
 	QueryAccount()
 	QueryPosition()
-	QueryOrders()
 	GwGetContract(req *BfGetContractReq) (resps []*BfContractData, err error)
 	GwPing(req *BfPingData) (resp *BfPingData, err error)
+	QueryOrders()
 
 	//
 	// datafeed api
@@ -42,6 +42,7 @@ type BfTrderClient_ITF interface {
 	DeleteTick(req *BfDeleteTickReq)
 	DeleteBar(req *BfDeleteBarReq)
 	DfPing(req *BfPingData) (resp *BfPingData, err error)
+	CleanAll()
 
 	//
 	// internal

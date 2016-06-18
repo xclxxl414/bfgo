@@ -280,6 +280,16 @@ func (client *BfTrderClient) DfPing(req *BfPingData) (resp *BfPingData, err erro
 	return
 }
 
+func (client *BfTrderClient) CleanAll() {
+	ctx := context.Background()
+	ctx = metadata.NewContext(ctx, metadata.Pairs("clientid", clientId_))
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(deadline*time.Second))
+	defer cancel()
+
+	_, _ = client.Datafeed.CleanAll(ctx, &BfVoid{})
+	return
+}
+
 //===internal api===
 func (client *BfTrderClient) DispatchPush(anyResp *Any) {
 	if ptypes.Is(anyResp, tickType_) {
