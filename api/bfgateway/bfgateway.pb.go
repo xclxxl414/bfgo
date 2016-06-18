@@ -79,6 +79,15 @@ func (x BfDirection) String() string {
 func (BfDirection) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
 // 开平常量
+//
+// 如果不是上期所：
+//    平今仓可用close或closeToday
+//    平昨仓可用close或closeYesterday
+// 如果是上期所:
+//    平今仓只可用closeToday
+//    平昨仓可用close或closeYesterday
+// 综合：
+// 平仓先平昨，用close，然后平今用closeToday
 type BfOffset int32
 
 const (
@@ -315,6 +324,8 @@ func (*BfOrderData) ProtoMessage()               {}
 func (*BfOrderData) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 // 持仓数据类
+// queryposition会返回多个positiondata
+// 需要对这些做累加合并，key=symbol+exchange+direction
 type BfPositionData struct {
 	// 代码编号相关
 	Symbol   string `protobuf:"bytes,1,opt,name=symbol" json:"symbol,omitempty"`
