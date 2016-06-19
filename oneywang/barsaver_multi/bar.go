@@ -9,24 +9,16 @@ import (
 import . "github.com/sunwangme/bfgo/api/bfgateway"
 import . "github.com/sunwangme/bfgo/api/bfdatafeed"
 
+// 支持这些周期的bar计算
 var periodKeyList = []BfBarPeriod{
+	BfBarPeriod_PERIOD_M01,
 	BfBarPeriod_PERIOD_M03,
 	BfBarPeriod_PERIOD_M05,
 	BfBarPeriod_PERIOD_M10,
 	BfBarPeriod_PERIOD_M15,
-	BfBarPeriod_PERIOD_M30}
-
-var periodMinutesList = map[BfBarPeriod]int32{
-	BfBarPeriod_PERIOD_M03: 3,
-	BfBarPeriod_PERIOD_M05: 5,
-	BfBarPeriod_PERIOD_M10: 10,
-	BfBarPeriod_PERIOD_M15: 15,
-	BfBarPeriod_PERIOD_M30: 30}
-
-const (
-	BFTICKTIMELAYOUT string = "2006010215:04:05.000"
-	BFBARTIMELAYOUT  string = "2006010215:04:00"
-)
+	BfBarPeriod_PERIOD_M30,
+	BfBarPeriod_PERIOD_H01,
+	BfBarPeriod_PERIOD_D01}
 
 // "%H:%M:%S.%f"==>"%H:%M:%S"
 func Ticktime2Bartime(t string) string {
@@ -43,7 +35,9 @@ func Ticktime2Bartime(t string) string {
 	return b
 }
 
-func Bartime2Minute(t string) int32 {
+// 输入："%H:%M:%S"
+// 输出：M值
+func bartime2Minute(t string) int32 {
 	var m int32
 	if strings.Count(t, ":") != 2 {
 		log.Fatalf("Failed bartime2minute : %s", t)
@@ -61,14 +55,67 @@ func Bartime2Minute(t string) int32 {
 	return m
 }
 
-// 用Tick数据赋值Bar
-func Tick2Bar(t *BfTickData, period BfBarPeriod, b *BfBarData) {
+var periodMinutesList = map[BfBarPeriod]int32{
+	BfBarPeriod_PERIOD_M01: 1,
+	BfBarPeriod_PERIOD_M03: 3,
+	BfBarPeriod_PERIOD_M05: 5,
+	BfBarPeriod_PERIOD_M10: 10,
+	BfBarPeriod_PERIOD_M15: 15,
+	BfBarPeriod_PERIOD_M30: 30}
+
+// 输入："%H:%M:%S"，
+// 输出：M值每个周期的整分钟值
+func Bartime2Minute(t string, period BfBarPeriod) int32 {
+	if x, ok := periodMinutesList[period]; ok {
+		return bartime2Minute(t) / x * x
+	} else {
+		panic("Bartime2Minute: period not supported.")
+	}
+}
+
+// 输入："%H:%M:%S"
+// 输出：H值
+func Bartime2Hour(t string) int32 {
+	var h int32
+	if strings.Count(t, ":") != 2 {
+		log.Fatalf("Failed bartime2minute : %s", t)
+	}
+	start := strings.Index(t, ":")
+	if start > 0 {
+		i, err := strconv.Atoi(t[:start])
+		if err != nil {
+			log.Fatalf("Failed bartime2minute : %s, %v", t, err)
+		} else {
+			h = int32(i)
+		}
+	}
+	return h
+}
+
+// 输入：两个时间值（不包含日期）与周期
+// 输出：是否属于同一个周期
+func IsSamePeriodTime(previous string, current string, period BfBarPeriod) bool {
+	// 只支持分钟与小时，日要用日期而不是时间
+	//log.Printf("IsNewPeriod:%v, %v", previous, current)
+	if period == BfBarPeriod_PERIOD_H01 {
+		return Bartime2Hour(previous) == Bartime2Hour(current)
+	} else {
+		// 多分钟的
+		t1 := Bartime2Minute(previous, period)
+		t2 := Bartime2Minute(current, period)
+		return t1 == t2
+	}
+	panic("unknow period")
+}
+
+// 用Tick数据构造一个新Bar并返回
+func ConstructBarFromTick(t *BfTickData, period BfBarPeriod) *BfBarData {
+	b := &BfBarData{Period: period}
 	b.Symbol = t.Symbol
 	b.Exchange = t.Exchange
-	b.Period = period
 
 	b.ActionDate = t.ActionDate
-	b.BarTime = Ticktime2Bartime(t.TickTime) //TODO: "%H:%M:%S.%f"==>"%H:%M:%S"
+	b.BarTime = Ticktime2Bartime(t.TickTime) //"%H:%M:%S.%f"==>"%H:%M:%S"
 	b.Volume = t.Volume
 	b.OpenInterest = t.OpenInterest
 	b.LastVolume = t.LastVolume
@@ -77,10 +124,25 @@ func Tick2Bar(t *BfTickData, period BfBarPeriod, b *BfBarData) {
 	b.HighPrice = t.LastPrice
 	b.LowPrice = t.LastPrice
 	b.ClosePrice = t.LastPrice
+
+	return b
 }
 
-type BarSlice map[BfBarPeriod]*BfBarData
+// 用Tick数据更新一个已有Bar
+func UpdateBarFromTick(b *BfBarData, t *BfTickData) {
+	b.BarTime = Ticktime2Bartime(t.TickTime) //"%H:%M:%S.%f"==>"%H:%M:%S"
 
+	b.HighPrice = math.Max(b.HighPrice, t.LastPrice)
+	b.LowPrice = math.Min(b.LowPrice, t.LastPrice)
+	b.ClosePrice = t.LastPrice
+
+	b.Volume = t.Volume
+	b.OpenInterest = t.OpenInterest
+	b.LastVolume += t.LastVolume
+}
+
+// 保存bar所用的核心数据结构
+type BarSlice map[BfBarPeriod]*BfBarData
 type Bars struct {
 	// 不同品种当前的1分钟K线
 	data map[string]*BarSlice
@@ -90,69 +152,48 @@ type Bars struct {
 	contractInited bool
 }
 
-func (p *Bars) GetBar(id string, period BfBarPeriod) *BfBarData {
-	log.Printf("%v", p.data)
-	if bar, ok := p.data[id]; ok {
-		return (*bar)[period]
-	}
-	return nil
-
-}
-
-func (p *Bars) SetBar(id string, bar *BfBarData, period BfBarPeriod) {
-	if b, ok := p.data[id]; ok {
-		(*b)[period] = bar
-	} else {
-		// 这个品种第一次赋值
-		var bs BarSlice = make(map[BfBarPeriod]*BfBarData)
-		bs[period] = bar
-		p.data[id] = &bs
-	}
-}
-
-func Barxxtime2Minute(t string, period BfBarPeriod) int32 {
-	if x, ok := periodMinutesList[period]; ok {
-		return Bartime2Minute(t) / x * x
-	} else {
-		panic("Bartime2Minute")
-	}
-}
-
-func (p *Bars) M01ToMxx(id string, bar *BfBarData, period BfBarPeriod) (*BfBarData, bool) {
-	var ret = BfBarData{}
-	var newBar = false
+// 用tick得到某周期的bar
+// 返回值
+// bool：是否新周期开始
+// *BfBarData：如果新周期开始，返回上一周期的bar以便后续操作
+func (p *Bars) Tick2Bar(id string, tick *BfTickData, period BfBarPeriod) (*BfBarData, bool) {
+	var ret *BfBarData = nil
+	needInsert := false
 
 	d, ok := p.data[id]
 	if !ok {
-		panic("imposible")
+		// 这个品种第一次赋值&1分钟的第一次赋值，生成barSlice
+		var bs BarSlice = make(map[BfBarPeriod]*BfBarData)
+		p.data[id] = &bs
+		d = &bs
 	}
 
-	if barxx, ok := (*d)[period]; !ok {
+	if storedBar, ok := (*d)[period]; !ok {
 		// 这个周期的bar第一次赋值
-		ret = *bar
-		ret.Period = period
-		(*d)[period] = &ret
+		(*d)[period] = ConstructBarFromTick(tick, period)
 	} else {
-		// 判断是否能够组成一个完整的bar了
-		currentMinute := Barxxtime2Minute(bar.BarTime, period)
-		previousMinute := Barxxtime2Minute(barxx.BarTime, period)
-		if currentMinute == previousMinute {
-			// 还在同一个周期中，更新即可
-			barxx.Volume = bar.Volume
-			barxx.OpenInterest = bar.OpenInterest
-			barxx.LastVolume += bar.LastVolume
-			barxx.HighPrice = math.Max(bar.HighPrice, barxx.HighPrice)
-			barxx.LowPrice = math.Min(bar.LowPrice, barxx.LowPrice)
-			barxx.ClosePrice = bar.ClosePrice
+		// 判断是否新的周期
+		isSamePeriod := true
+		if period == BfBarPeriod_PERIOD_D01 {
+			isSamePeriod = storedBar.ActionDate == tick.ActionDate
+		} else if period == BfBarPeriod_PERIOD_W01 {
+			panic("TODO: WEEK BAR not support")
 		} else {
-			// 新的周期开始，需要插入了
-			newBar = true
-			ret = *barxx
-			// 用1分钟的bar初始化一个新的barxx
-			*barxx = *bar //TODO：希望这是深拷贝
-			barxx.Period = period
+			isSamePeriod = IsSamePeriodTime(storedBar.BarTime, Ticktime2Bartime(tick.TickTime), period)
+		}
+
+		if isSamePeriod {
+			// 还在同一个周期中，更新即可
+			UpdateBarFromTick(storedBar, tick)
+		} else {
+			// 新的周期开始，需要返回这个完整bar以便插入db，同时生成新周期的bar
+			log.Print("not same 1min: insert and update")
+			needInsert = true
+			ret = storedBar
+			// 用tick初始化一个新的currentBar
+			(*d)[period] = ConstructBarFromTick(tick, period)
 		}
 	}
 
-	return &ret, newBar
+	return ret, needInsert
 }
